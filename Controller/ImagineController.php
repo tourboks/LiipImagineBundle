@@ -73,7 +73,7 @@ class ImagineController
         $resolver = $request->get('resolver');
 
         try {
-            return new RedirectResponse($this->filterService->getUrlOfFilteredImage($path, $filter, $resolver), 301);
+            return new RedirectResponse($this->filterService->getUrlOfFilteredImage($this->fileUrl($path), $filter, $resolver), 301);
         } catch (NotLoadableException $e) {
             if (null !== $this->dataManager->getDefaultImageUrl($filter)) {
                 return new RedirectResponse($this->dataManager->getDefaultImageUrl($filter));
@@ -136,5 +136,16 @@ class ImagineController
         } catch (RuntimeException $e) {
             throw new \RuntimeException(sprintf('Unable to create image for path "%s" and filter "%s". Message was "%s"', $hash.'/'.$path, $filter, $e->getMessage()), 0, $e);
         }
+    }
+
+    public function fileUrl($url){
+        $parts = parse_url($url);
+        $path_parts = array_map('rawurldecode', explode('/', $parts['path']));
+
+        return
+            $parts['scheme'] . '://' .
+            $parts['host'] .
+            implode('/', array_map('rawurlencode', $path_parts))
+            ;
     }
 }
