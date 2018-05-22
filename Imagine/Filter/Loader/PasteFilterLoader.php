@@ -34,14 +34,9 @@ class PasteFilterLoader implements LoaderInterface
     }
 
     /**
-     * @see \Liip\ImagineBundle\Imagine\Filter\Loader\LoaderInterface::load()
-     *
-     * @param ImageInterface $image
-     * @param array          $options
-     *
-     * @return ImageInterface|static
+     * @see Liip\ImagineBundle\Imagine\Filter\Loader\LoaderInterface::load()
      */
-    public function load(ImageInterface $image, array $options = [])
+    public function load(ImageInterface $image, array $options = array())
     {
         $x = isset($options['start'][0]) ? $options['start'][0] : null;
         $y = isset($options['start'][1]) ? $options['start'][1] : null;

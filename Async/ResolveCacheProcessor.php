@@ -1,38 +1,34 @@
 <?php
 
-/*
- * This file is part of the `liip/LiipImagineBundle` project.
- *
- * (c) https://github.com/liip/LiipImagineBundle/graphs/contributors
- *
- * For the full copyright and license information, please view the LICENSE.md
- * file that was distributed with this source code.
- */
-
 namespace Liip\ImagineBundle\Async;
 
-use Enqueue\Client\CommandSubscriberInterface;
 use Enqueue\Client\ProducerInterface;
+use Enqueue\Client\TopicSubscriberInterface;
 use Enqueue\Consumption\QueueSubscriberInterface;
 use Enqueue\Consumption\Result;
-use Enqueue\Util\JSON;
-use Interop\Queue\PsrContext;
-use Interop\Queue\PsrMessage;
-use Interop\Queue\PsrProcessor;
+use Enqueue\Psr\PsrContext;
+use Enqueue\Psr\PsrMessage;
+use Enqueue\Psr\PsrProcessor;
+use Liip\ImagineBundle\Imagine\Cache\CacheManager;
+use Liip\ImagineBundle\Imagine\Data\DataManager;
 use Liip\ImagineBundle\Imagine\Filter\FilterManager;
-use Liip\ImagineBundle\Service\FilterService;
 
-final class ResolveCacheProcessor implements PsrProcessor, CommandSubscriberInterface, QueueSubscriberInterface
+class ResolveCacheProcessor implements PsrProcessor, TopicSubscriberInterface, QueueSubscriberInterface
 {
+    /**
+     * @var CacheManager
+     */
+    private $cacheManager;
+
     /**
      * @var FilterManager
      */
     private $filterManager;
 
     /**
-     * @var FilterService
+     * @var DataManager
      */
-    private $filterService;
+    private $dataManager;
 
     /**
      * @var ProducerInterface
@@ -40,17 +36,20 @@ final class ResolveCacheProcessor implements PsrProcessor, CommandSubscriberInte
     private $producer;
 
     /**
+     * @param CacheManager      $cacheManager
      * @param FilterManager     $filterManager
-     * @param FilterService     $filterService
+     * @param DataManager       $dataManager
      * @param ProducerInterface $producer
      */
     public function __construct(
+        CacheManager $cacheManager,
         FilterManager $filterManager,
-        FilterService $filterService,
+        DataManager $dataManager,
         ProducerInterface $producer
     ) {
+        $this->cacheManager = $cacheManager;
         $this->filterManager = $filterManager;
-        $this->filterService = $filterService;
+        $this->dataManager = $dataManager;
         $this->producer = $producer;
     }
 
@@ -61,50 +60,50 @@ final class ResolveCacheProcessor implements PsrProcessor, CommandSubscriberInte
     {
         try {
             $message = ResolveCache::jsonDeserialize($psrMessage->getBody());
+        } catch (\Exception $e) {
+            return Result::reject($e->getMessage());
+        }
 
-            $filters = $message->getFilters() ?: array_keys($this->filterManager->getFilterConfiguration()->all());
-            $path = $message->getPath();
-            $results = [];
-            foreach ($filters as $filter) {
-                if ($message->isForce()) {
-                    $this->filterService->bustCache($path, $filter);
-                }
-
-                $results[$filter] = $this->filterService->getUrlOfFilteredImage($path, $filter);
+        $filters = $message->getFilters() ?: array_keys($this->filterManager->getFilterConfiguration()->all());
+        $path = $message->getPath();
+        $results = array();
+        foreach ($filters as $filter) {
+            if ($this->cacheManager->isStored($path, $filter) && $message->isForce()) {
+                $this->cacheManager->remove($path, $filter);
             }
 
-            $this->producer->sendEvent(Topics::CACHE_RESOLVED, new CacheResolved($path, $results));
+            if (false == $this->cacheManager->isStored($path, $filter)) {
+                $binary = $this->dataManager->find($filter, $path);
+                $this->cacheManager->store(
+                    $this->filterManager->applyFilter($binary, $filter),
+                    $path,
+                    $filter
+                );
+            }
 
-            return Result::reply($psrContext->createMessage(JSON::encode([
-                'status' => true,
-                'results' => $results,
-            ])));
-        } catch (\Exception $e) {
-            return Result::reply($psrContext->createMessage(JSON::encode([
-                'status' => false,
-                'exception' => $e->getMessage(),
-            ])), Result::REJECT, $e->getMessage());
+            $results[$filter] = $this->cacheManager->resolve($path, $filter);
         }
+
+        $this->producer->send(Topics::CACHE_RESOLVED, new CacheResolved($path, $results));
+
+        return self::ACK;
     }
 
     /**
      * {@inheritdoc}
      */
-    public static function getSubscribedCommand(): array
+    public static function getSubscribedTopics()
     {
-        return [
-            'processorName' => Commands::RESOLVE_CACHE,
-            'queueName' => Commands::RESOLVE_CACHE,
-            'queueNameHardcoded' => true,
-            'exclusive' => true,
-        ];
+        return array(
+            Topics::RESOLVE_CACHE => array('queueName' => Topics::RESOLVE_CACHE,  'queueNameHardcoded' => true),
+        );
     }
 
     /**
      * {@inheritdoc}
      */
-    public static function getSubscribedQueues(): array
+    public static function getSubscribedQueues()
     {
-        return [Commands::RESOLVE_CACHE];
+        return array(Topics::RESOLVE_CACHE);
     }
 }

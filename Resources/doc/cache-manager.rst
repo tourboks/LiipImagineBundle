@@ -25,8 +25,8 @@ Some paths and some filters:
 .. code-block:: php
 
     $cacheManager->remove(
-        [$pathOne, $pathTwo],
-        ['thumbnail_233x233', 'thumbnail_100x100']
+        array($pathOne, $pathTwo),
+        array('thumbnail_233x233', 'thumbnail_100x100')
     );
 
 The whole cache.

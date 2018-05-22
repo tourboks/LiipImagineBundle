@@ -14,7 +14,7 @@ namespace Liip\ImagineBundle\Imagine\Filter\PostProcessor;
 use Liip\ImagineBundle\Binary\BinaryInterface;
 use Liip\ImagineBundle\Model\Binary;
 use Symfony\Component\Process\Exception\ProcessFailedException;
-use Symfony\Component\Process\Process;
+use Symfony\Component\Process\ProcessBuilder;
 
 /**
  * mozjpeg post-processor, for noticably better jpeg compression.
@@ -24,16 +24,12 @@ use Symfony\Component\Process\Process;
  *
  * @author Alex Wilson <a@ax.gy>
  */
-class MozJpegPostProcessor implements PostProcessorInterface
+class MozJpegPostProcessor implements PostProcessorInterface, ConfigurablePostProcessorInterface
 {
-    /**
-     * @var string Path to the mozjpeg cjpeg binary
-     */
+    /** @var string Path to the mozjpeg cjpeg binary */
     protected $mozjpegBin;
 
-    /**
-     * @var null|int Quality factor
-     */
+    /** @var null|int Quality factor */
     protected $quality;
 
     /**
@@ -64,39 +60,52 @@ class MozJpegPostProcessor implements PostProcessorInterface
 
     /**
      * @param BinaryInterface $binary
+     *
+     * @throws ProcessFailedException
+     *
+     * @return BinaryInterface
+     */
+    public function process(BinaryInterface $binary)
+    {
+        return $this->processWithConfiguration($binary, array());
+    }
+
+    /**
+     * @param BinaryInterface $binary
      * @param array           $options
      *
      * @throws ProcessFailedException
      *
      * @return BinaryInterface
      */
-    public function process(BinaryInterface $binary, array $options = []): BinaryInterface
+    public function processWithConfiguration(BinaryInterface $binary, array $options)
     {
-        $type = mb_strtolower($binary->getMimeType());
-        if (!in_array($type, ['image/jpeg', 'image/jpg'], true)) {
+        $type = strtolower($binary->getMimeType());
+        if (!in_array($type, array('image/jpeg', 'image/jpg'))) {
             return $binary;
         }
 
-        $processArguments = [$this->mozjpegBin];
+        $pb = new ProcessBuilder(array($this->mozjpegBin));
 
         // Places emphasis on DC
-        $processArguments[] = '-quant-table';
-        $processArguments[] = 2;
+        $pb->add('-quant-table');
+        $pb->add(2);
 
         $transformQuality = array_key_exists('quality', $options) ? $options['quality'] : $this->quality;
-        if (null !== $transformQuality) {
-            $processArguments[] = '-quality';
-            $processArguments[] = $transformQuality;
+        if ($transformQuality !== null) {
+            $pb->add('-quality');
+            $pb->add($transformQuality);
         }
 
-        $processArguments[] = '-optimise';
+        $pb->add('-optimise');
 
         // Favor stdin/stdout so we don't waste time creating a new file.
-        $proc = new Process($processArguments);
-        $proc->setInput($binary->getContent());
+        $pb->setInput($binary->getContent());
+
+        $proc = $pb->getProcess();
         $proc->run();
 
-        if (false !== mb_strpos($proc->getOutput(), 'ERROR') || 0 !== $proc->getExitCode()) {
+        if (false !== strpos($proc->getOutput(), 'ERROR') || 0 !== $proc->getExitCode()) {
             throw new ProcessFailedException($proc);
         }
 

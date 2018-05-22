@@ -12,10 +12,10 @@
 namespace Liip\ImagineBundle\Form\Type;
 
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\OptionsResolver\OptionsResolverInterface;
 
 /**
  * ImageType.
@@ -42,17 +42,25 @@ class ImageType extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setRequired([
+        $resolver->setRequired(array(
             'image_path',
             'image_filter',
-        ]);
+        ));
 
-        $resolver->setDefaults([
-            'image_attr' => [],
+        $resolver->setDefaults(array(
+            'image_attr' => array(),
             'link_url' => null,
             'link_filter' => null,
-            'link_attr' => [],
-        ]);
+            'link_attr' => array(),
+        ));
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setDefaultOptions(OptionsResolverInterface $resolver)
+    {
+        $this->configureOptions($resolver);
     }
 
     /**
@@ -60,6 +68,14 @@ class ImageType extends AbstractType
      */
     public function getParent()
     {
-        return FileType::class;
+        return 'file';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getName()
+    {
+        return 'liip_imagine_image';
     }
 }

@@ -20,24 +20,24 @@ use Imagine\Image\ImageInterface;
  */
 class AutoRotateFilterLoader implements LoaderInterface
 {
-    protected $orientationKeys = [
+    protected $orientationKeys = array(
         'exif.Orientation',
         'ifd0.Orientation',
-    ];
+    );
 
     /**
      * {@inheritdoc}
      */
-    public function load(ImageInterface $image, array $options = [])
+    public function load(ImageInterface $image, array $options = array())
     {
-        if (null !== $orientation = $this->getOrientation($image)) {
+        if ($orientation = $this->getOrientation($image)) {
             if ($orientation < 1 || $orientation > 8) {
                 return $image;
             }
 
             // Rotates if necessary.
             $degree = $this->calculateRotation($orientation);
-            if (0 !== $degree) {
+            if ($degree !== 0) {
                 $image->rotate($degree);
             }
 
@@ -78,21 +78,28 @@ class AutoRotateFilterLoader implements LoaderInterface
     /**
      * @param ImageInterface $image
      *
-     * @return int|null
+     * @return int
      */
     private function getOrientation(ImageInterface $image)
     {
-        foreach ($this->orientationKeys as $orientationKey) {
-            $orientation = $image->metadata()->offsetGet($orientationKey);
+        //>0.6 imagine meta data interface
+        if (method_exists($image, 'metadata')) {
+            foreach ($this->orientationKeys as $orientationKey) {
+                $orientation = $image->metadata()->offsetGet($orientationKey);
 
-            if ($orientation) {
-                $image->metadata()->offsetSet($orientationKey, '1');
+                if ($orientation) {
+                    $image->metadata()->offsetSet($orientationKey, '1');
 
-                return (int) $orientation;
+                    return intval($orientation);
+                }
             }
+        } else {
+            $data = exif_read_data('data://image/jpeg;base64,'.base64_encode($image->get('jpg')));
+
+            return isset($data['Orientation']) ? $data['Orientation'] : null;
         }
 
-        return null;
+        return;
     }
 
     /**
@@ -104,6 +111,18 @@ class AutoRotateFilterLoader implements LoaderInterface
      */
     private function isFlipped($orientation)
     {
-        return in_array((int) $orientation, [2, 4, 5, 7], true);
+        switch ($orientation) {
+            case 1:
+            case 3:
+            case 6:
+            case 8:
+                return false;
+
+            case 2:
+            case 4:
+            case 5:
+            case 7:
+                return true;
+        }
     }
 }

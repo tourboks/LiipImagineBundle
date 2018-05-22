@@ -102,7 +102,7 @@ class WebPathResolver implements ResolverInterface
         }
 
         if (empty($paths)) {
-            $filtersCacheDir = [];
+            $filtersCacheDir = array();
             foreach ($filters as $filter) {
                 $filtersCacheDir[] = $this->cacheRoot.'/'.$filter;
             }
@@ -144,16 +144,16 @@ class WebPathResolver implements ResolverInterface
     protected function getBaseUrl()
     {
         $port = '';
-        if ('https' === $this->requestContext->getScheme() && 443 !== $this->requestContext->getHttpsPort()) {
+        if ('https' == $this->requestContext->getScheme() && $this->requestContext->getHttpsPort() != 443) {
             $port = ":{$this->requestContext->getHttpsPort()}";
         }
 
-        if ('http' === $this->requestContext->getScheme() && 80 !== $this->requestContext->getHttpPort()) {
+        if ('http' == $this->requestContext->getScheme() && $this->requestContext->getHttpPort() != 80) {
             $port = ":{$this->requestContext->getHttpPort()}";
         }
 
         $baseUrl = $this->requestContext->getBaseUrl();
-        if ('.php' === mb_substr($this->requestContext->getBaseUrl(), -4)) {
+        if ('.php' == substr($this->requestContext->getBaseUrl(), -4)) {
             $baseUrl = pathinfo($this->requestContext->getBaseurl(), PATHINFO_DIRNAME);
         }
         $baseUrl = rtrim($baseUrl, '/\\');

@@ -1,18 +1,8 @@
 <?php
 
-/*
- * This file is part of the `liip/LiipImagineBundle` project.
- *
- * (c) https://github.com/liip/LiipImagineBundle/graphs/contributors
- *
- * For the full copyright and license information, please view the LICENSE.md
- * file that was distributed with this source code.
- */
-
 namespace Liip\ImagineBundle\Async;
 
 use Enqueue\Util\JSON;
-use Liip\ImagineBundle\Exception\LogicException;
 
 class CacheResolved implements \JsonSerializable
 {
@@ -22,7 +12,7 @@ class CacheResolved implements \JsonSerializable
     private $path;
 
     /**
-     * @var string[]
+     * @var \string[]
      */
     private $uris;
 
@@ -30,7 +20,7 @@ class CacheResolved implements \JsonSerializable
      * @param string        $path
      * @param string[]|null $uris
      */
-    public function __construct(string $path, array $uris)
+    public function __construct($path, array $uris)
     {
         $this->path = $path;
         $this->uris = $uris;
@@ -39,15 +29,15 @@ class CacheResolved implements \JsonSerializable
     /**
      * @return string
      */
-    public function getPath(): string
+    public function getPath()
     {
         return $this->path;
     }
 
     /**
-     * @return string[]
+     * @return \string[]
      */
-    public function getUris(): array
+    public function getUris()
     {
         return $this->uris;
     }
@@ -55,26 +45,26 @@ class CacheResolved implements \JsonSerializable
     /**
      * {@inheritdoc}
      */
-    public function jsonSerialize(): array
+    public function jsonSerialize()
     {
-        return ['path' => $this->path, 'uris' => $this->uris];
+        return array('path' => $this->path, 'uris' => $this->uris);
     }
 
     /**
      * @param string $json
      *
-     * @return self
+     * @return static
      */
-    public static function jsonDeserialize(string $json): self
+    public static function jsonDeserialize($json)
     {
         $data = JSON::decode($json);
 
         if (empty($data['path'])) {
-            throw new LogicException('The message does not contain "path" but it is required.');
+            throw new \LogicException('The message does not contain "path" but it is required.');
         }
 
         if (empty($data['uris'])) {
-            throw new LogicException('The message uris must not be empty array.');
+            throw new \LogicException('The message uris must not be empty array.');
         }
 
         return new static($data['path'], $data['uris']);

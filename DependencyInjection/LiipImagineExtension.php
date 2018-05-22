@@ -13,7 +13,6 @@ namespace Liip\ImagineBundle\DependencyInjection;
 
 use Liip\ImagineBundle\DependencyInjection\Factory\Loader\LoaderFactoryInterface;
 use Liip\ImagineBundle\DependencyInjection\Factory\Resolver\ResolverFactoryInterface;
-use Liip\ImagineBundle\Imagine\Cache\CacheManager;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\Alias;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -26,12 +25,12 @@ class LiipImagineExtension extends Extension
     /**
      * @var ResolverFactoryInterface[]
      */
-    private $resolversFactories = [];
+    protected $resolversFactories = array();
 
     /**
      * @var LoaderFactoryInterface[]
      */
-    private $loadersFactories = [];
+    protected $loadersFactories = array();
 
     /**
      * @param ResolverFactoryInterface $resolverFactory
@@ -58,10 +57,7 @@ class LiipImagineExtension extends Extension
     }
 
     /**
-     * @see \Symfony\Component\DependencyInjection\Extension.ExtensionInterface::load()
-     *
-     * @param array            $configs
-     * @param ContainerBuilder $container
+     * @see Symfony\Component\DependencyInjection\Extension.ExtensionInterface::load()
      */
     public function load(array $configs, ContainerBuilder $container)
     {
@@ -75,18 +71,20 @@ class LiipImagineExtension extends Extension
 
         $loader = new XmlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('imagine.xml');
-        $loader->load('commands.xml');
 
         if ($config['enqueue']) {
             $loader->load('enqueue.xml');
         }
 
-        $container->getDefinition('liip_imagine.'.$config['driver'])->addMethodCall('setMetadataReader', [
-            new Reference('liip_imagine.meta_data.reader'),
-        ]);
+        $this->setFactories($container);
+
+        if (interface_exists('Imagine\Image\Metadata\MetadataReaderInterface')) {
+            $container->getDefinition('liip_imagine.'.$config['driver'])->addMethodCall('setMetadataReader', array(new Reference('liip_imagine.meta_data.reader')));
+        } else {
+            $container->removeDefinition('liip_imagine.meta_data.reader');
+        }
 
         $container->setAlias('liip_imagine', new Alias('liip_imagine.'.$config['driver']));
-        $container->setAlias(CacheManager::class, new Alias('liip_imagine.cache.manager', false));
 
         $container->setParameter('liip_imagine.cache.resolver.default', $config['cache']);
 
@@ -97,40 +95,61 @@ class LiipImagineExtension extends Extension
 
         $container->setParameter('liip_imagine.controller.filter_action', $config['controller']['filter_action']);
         $container->setParameter('liip_imagine.controller.filter_runtime_action', $config['controller']['filter_runtime_action']);
+        $container->setParameter('liip_imagine.controller.redirect_response_code', $config['controller']['redirect_response_code']);
 
-        $container->setParameter('twig.form.resources', array_merge(
-            $container->hasParameter('twig.form.resources') ? $container->getParameter('twig.form.resources') : [],
-            ['@LiipImagine/Form/form_div_layout.html.twig']
-        ));
+        $resources = $container->hasParameter('twig.form.resources') ? $container->getParameter('twig.form.resources') : array();
+        $resources[] = 'LiipImagineBundle:Form:form_div_layout.html.twig';
+        $container->setParameter('twig.form.resources', $resources);
     }
 
     /**
      * @param array            $config
      * @param ContainerBuilder $container
      */
-    private function loadResolvers(array $config, ContainerBuilder $container)
+    protected function loadResolvers(array $config, ContainerBuilder $container)
     {
-        $this->createFactories($this->resolversFactories, $config, $container);
+        foreach ($config as $resolverName => $resolverConfig) {
+            $factoryName = key($resolverConfig);
+            $factory = $this->resolversFactories[$factoryName];
+
+            $factory->create($container, $resolverName, $resolverConfig[$factoryName]);
+        }
     }
 
     /**
      * @param array            $config
      * @param ContainerBuilder $container
      */
-    private function loadLoaders(array $config, ContainerBuilder $container)
+    protected function loadLoaders(array $config, ContainerBuilder $container)
     {
-        $this->createFactories($this->loadersFactories, $config, $container);
+        foreach ($config as $loaderName => $loaderConfig) {
+            $factoryName = key($loaderConfig);
+            $factory = $this->loadersFactories[$factoryName];
+
+            $factory->create($container, $loaderName, $loaderConfig[$factoryName]);
+        }
     }
 
     /**
-     * @param array            $factories
-     * @param array            $configurations
      * @param ContainerBuilder $container
      */
-    private function createFactories(array $factories, array $configurations, ContainerBuilder $container)
+    private function setFactories(ContainerBuilder $container)
     {
-        foreach ($configurations as $name => $conf) {
-            $factories[key($conf)]->create($container, $name, $conf[key($conf)]);
+        $factories = array(
+            'liip_imagine.mime_type_guesser' => array('Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesser', 'getInstance'),
+            'liip_imagine.extension_guesser' => array('Symfony\Component\HttpFoundation\File\MimeType\ExtensionGuesser', 'getInstance'),
+        );
+
+        foreach ($factories as $service => $factory) {
+            $definition = $container->getDefinition($service);
+            if (method_exists($definition, 'setFactory')) {
+                // to be inlined in imagine.xml when dependency on Symfony DependencyInjection is bumped to 2.6
+                $definition->setFactory($factory);
+            } else {
+                // to be removed when dependency on Symfony DependencyInjection is bumped to 2.6
+                $definition->setFactoryClass($factory[0]);
+                $definition->setFactoryMethod($factory[1]);
+            }
         }
     }
 }

@@ -29,7 +29,7 @@ class RotateFilterLoader implements LoaderInterface
      *
      * @return ManipulatorInterface
      */
-    public function load(ImageInterface $image, array $options = [])
+    public function load(ImageInterface $image, array $options = array())
     {
         $angle = isset($options['angle']) ? (int) $options['angle'] : 0;
 

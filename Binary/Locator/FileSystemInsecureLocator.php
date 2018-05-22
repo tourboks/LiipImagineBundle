@@ -17,17 +17,16 @@ class FileSystemInsecureLocator extends FileSystemLocator
      * @param string $root
      * @param string $path
      *
-     * @return string|null
+     * @return string|false
      */
-    protected function generateAbsolutePath(string $root, string $path): ?string
+    protected function generateAbsolutePath($root, $path)
     {
-        if (false === mb_strpos($path, '..'.DIRECTORY_SEPARATOR) &&
-            false === mb_strpos($path, DIRECTORY_SEPARATOR.'..') &&
-            false !== file_exists($absolute = $root.DIRECTORY_SEPARATOR.$path)
-        ) {
-            return $absolute;
+        if (false !== strpos($path, '..'.DIRECTORY_SEPARATOR) ||
+            false !== strpos($path, DIRECTORY_SEPARATOR.'..') ||
+            false === file_exists($absolute = $root.DIRECTORY_SEPARATOR.$path)) {
+            return false;
         }
 
-        return null;
+        return $absolute;
     }
 }

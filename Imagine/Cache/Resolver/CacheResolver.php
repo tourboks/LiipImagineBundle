@@ -13,7 +13,9 @@ namespace Liip\ImagineBundle\Imagine\Cache\Resolver;
 
 use Doctrine\Common\Cache\Cache;
 use Liip\ImagineBundle\Binary\BinaryInterface;
+use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\OptionsResolver\OptionsResolverInterface;
 
 class CacheResolver implements ResolverInterface
 {
@@ -22,10 +24,7 @@ class CacheResolver implements ResolverInterface
      */
     protected $cache;
 
-    /**
-     * @var array
-     */
-    protected $options = [];
+    protected $options = array();
 
     /**
      * @var ResolverInterface
@@ -43,12 +42,12 @@ class CacheResolver implements ResolverInterface
      * * index_key
      *   The name of the index key being used to save a list of created cache keys regarding one image and filter pairing.
      *
-     * @param Cache             $cache
-     * @param ResolverInterface $cacheResolver
-     * @param array             $options
-     * @param OptionsResolver   $optionsResolver
+     * @param Cache                    $cache
+     * @param ResolverInterface        $cacheResolver
+     * @param array                    $options
+     * @param OptionsResolverInterface $optionsResolver
      */
-    public function __construct(Cache $cache, ResolverInterface $cacheResolver, array $options = [], OptionsResolver $optionsResolver = null)
+    public function __construct(Cache $cache, ResolverInterface $cacheResolver, array $options = array(), OptionsResolverInterface $optionsResolver = null)
     {
         $this->cache = $cache;
         $this->resolver = $cacheResolver;
@@ -70,7 +69,8 @@ class CacheResolver implements ResolverInterface
 
         return
             $this->cache->contains($cacheKey) ||
-            $this->resolver->isStored($path, $filter);
+            $this->resolver->isStored($path, $filter)
+        ;
     }
 
     /**
@@ -116,26 +116,6 @@ class CacheResolver implements ResolverInterface
         }
     }
 
-    /**
-     * Generate a unique cache key based on the given parameters.
-     *
-     * When overriding this method, ensure generateIndexKey is adjusted accordingly.
-     *
-     * @param string $path   The image path in use
-     * @param string $filter The filter in use
-     *
-     * @return string
-     */
-    public function generateCacheKey($path, $filter)
-    {
-        return implode('.', [
-            $this->sanitizeCacheKeyPart($this->options['global_prefix']),
-            $this->sanitizeCacheKeyPart($this->options['prefix']),
-            $this->sanitizeCacheKeyPart($filter),
-            $this->sanitizeCacheKeyPart($path),
-        ]);
-    }
-
     protected function removePathAndFilter($path, $filter)
     {
         $indexKey = $this->generateIndexKey($this->generateCacheKey($path, $filter));
@@ -150,10 +130,10 @@ class CacheResolver implements ResolverInterface
                 $this->cache->delete($eachCacheKey);
             }
 
-            $index = [];
+            $index = array();
         } else {
             $cacheKey = $this->generateCacheKey($path, $filter);
-            if (false !== $indexIndex = array_search($cacheKey, $index, true)) {
+            if (false !== $indexIndex = array_search($cacheKey, $index)) {
                 unset($index[$indexIndex]);
                 $this->cache->delete($cacheKey);
             }
@@ -164,6 +144,26 @@ class CacheResolver implements ResolverInterface
         } else {
             $this->cache->save($indexKey, $index);
         }
+    }
+
+    /**
+     * Generate a unique cache key based on the given parameters.
+     *
+     * When overriding this method, ensure generateIndexKey is adjusted accordingly.
+     *
+     * @param string $path   The image path in use
+     * @param string $filter The filter in use
+     *
+     * @return string
+     */
+    public function generateCacheKey($path, $filter)
+    {
+        return implode('.', array(
+            $this->sanitizeCacheKeyPart($this->options['global_prefix']),
+            $this->sanitizeCacheKeyPart($this->options['prefix']),
+            $this->sanitizeCacheKeyPart($filter),
+            $this->sanitizeCacheKeyPart($path),
+        ));
     }
 
     /**
@@ -179,12 +179,12 @@ class CacheResolver implements ResolverInterface
     {
         $cacheKeyStack = explode('.', $cacheKey);
 
-        return implode('.', [
+        return implode('.', array(
             $this->sanitizeCacheKeyPart($this->options['global_prefix']),
             $this->sanitizeCacheKeyPart($this->options['prefix']),
             $this->sanitizeCacheKeyPart($this->options['index_key']),
             $this->sanitizeCacheKeyPart($cacheKeyStack[2]), // filter
-        ]);
+        ));
     }
 
     /**
@@ -212,11 +212,11 @@ class CacheResolver implements ResolverInterface
         if ($this->cache->contains($indexKey)) {
             $index = (array) $this->cache->fetch($indexKey);
 
-            if (!in_array($cacheKey, $index, true)) {
+            if (!in_array($cacheKey, $index)) {
                 $index[] = $cacheKey;
             }
         } else {
-            $index = [$cacheKey];
+            $index = array($cacheKey);
         }
 
         /*
@@ -234,24 +234,28 @@ class CacheResolver implements ResolverInterface
 
     protected function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults([
+        $resolver->setDefaults(array(
             'global_prefix' => 'liip_imagine.resolver_cache',
             'prefix' => get_class($this->resolver),
             'index_key' => 'index',
-        ]);
+        ));
 
-        $allowedTypesList = [
+        $allowedTypesList = array(
           'global_prefix' => 'string',
           'prefix' => 'string',
           'index_key' => 'string',
-        ];
+        );
 
-        foreach ($allowedTypesList as $option => $allowedTypes) {
-            $resolver->setAllowedTypes($option, $allowedTypes);
+        if (version_compare(Kernel::VERSION_ID, '20600') >= 0) {
+            foreach ($allowedTypesList as $option => $allowedTypes) {
+                $resolver->setAllowedTypes($option, $allowedTypes);
+            }
+        } else {
+            $resolver->setAllowedTypes($allowedTypesList);
         }
     }
 
-    protected function setDefaultOptions(OptionsResolver $resolver)
+    protected function setDefaultOptions(OptionsResolverInterface $resolver)
     {
         $this->configureOptions($resolver);
     }

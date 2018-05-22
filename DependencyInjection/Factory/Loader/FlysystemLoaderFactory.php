@@ -43,10 +43,8 @@ class FlysystemLoaderFactory extends AbstractLoaderFactory
     {
         $builder
             ->children()
-                ->scalarNode('filesystem_service')
-                    ->isRequired()
-                    ->cannotBeEmpty()
-                ->end()
-            ->end();
+                ->scalarNode('filesystem_service')->isRequired()->cannotBeEmpty()->end()
+            ->end()
+        ;
     }
 }

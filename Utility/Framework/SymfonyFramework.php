@@ -13,14 +13,35 @@ namespace Liip\ImagineBundle\Utility\Framework;
 
 use Symfony\Component\HttpKernel\Kernel;
 
+/**
+ * @internal
+ */
 class SymfonyFramework
 {
     /**
-     * @return string
+     * @return bool
      */
-    public static function getContainerResolvableRootWebPath(): string
+    public static function hasDefinitionSharing()
     {
-        return sprintf('%%kernel.project_dir%%/%s', self::isKernelLessThan(4) ? 'web' : 'public');
+        return method_exists('\Symfony\Component\DependencyInjection\Definition', 'setShared')
+            && method_exists('\Symfony\Component\DependencyInjection\Definition', 'isShared');
+    }
+
+    /**
+     * @return bool
+     */
+    public static function hasDefinitionScoping()
+    {
+        return method_exists('\Symfony\Component\DependencyInjection\Definition', 'setScope')
+            && method_exists('\Symfony\Component\DependencyInjection\Definition', 'getScope');
+    }
+
+    /**
+     * @return bool
+     */
+    public static function hasDirectContainerBuilderLogging()
+    {
+        return method_exists('\Symfony\Component\DependencyInjection\ContainerBuilder', 'log');
     }
 
     /**
@@ -30,7 +51,7 @@ class SymfonyFramework
      *
      * @return bool
      */
-    public static function isKernelGreaterThanOrEqualTo(int $major, int $minor = null, int $patch = null): bool
+    public static function isKernelGreaterThanOrEqualTo($major, $minor = null, $patch = null)
     {
         return static::kernelVersionCompare('>=', $major, $minor, $patch);
     }
@@ -42,7 +63,7 @@ class SymfonyFramework
      *
      * @return bool
      */
-    public static function isKernelLessThan(int $major, int $minor = null, int $patch = null): bool
+    public static function isKernelLessThan($major, $minor = null, $patch = null)
     {
         return static::kernelVersionCompare('<', $major, $minor, $patch);
     }
@@ -55,7 +76,7 @@ class SymfonyFramework
      *
      * @return bool
      */
-    private static function kernelVersionCompare(string $operator, int $major, int $minor = null, int $patch = null): bool
+    private static function kernelVersionCompare($operator, $major, $minor = null, $patch = null)
     {
         return version_compare(Kernel::VERSION_ID, sprintf("%d%'.02d%'.02d", $major, $minor ?: 0, $patch ?: 0), $operator);
     }

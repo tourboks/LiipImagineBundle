@@ -34,11 +34,10 @@ To begin, you must assign your AWS key, secret, bucket, and region to their resp
     # app/config/config.yml or app/config/parameters.yml
 
     parameters:
-        amazon.s3.key:     "your-aws-key"
-        amazon.s3.secret:  "your-aws-secret"
-        amazon.s3.bucket:  "your-bucket.example.com"
-        amazon.s3.region:  "your-bucket-region"
-        amazon.s3.version: "2006-03-01"
+        amazon.s3.key:    "your-aws-key"
+        amazon.s3.secret: "your-aws-secret"
+        amazon.s3.bucket: "your-bucket.example.com"
+        amazon.s3.region: "your-bucket-region"
 
 
 Prerequisites
@@ -60,8 +59,7 @@ Create Resolver from a Factory
                             key:    "%amazon.s3.key%"
                             secret: "%amazon.s3.secret%"
                         region: "%amazon.s3.region%"
-                        version: "%amazon.s3.version%"
-                    bucket: "%amazon.s3.bucket%"
+                        bucket: "%amazon.s3.cache_bucket%"
                     get_options:
                         Scheme: https
                     put_options:
@@ -83,7 +81,7 @@ Create Resolver from a Factory
                     key:    "%amazon.s3.key%"
                     secret: "%amazon.s3.secret%"
                     region: "%amazon.s3.region%"
-                    bucket: "%amazon.s3.bucket%"
+                    bucket: "%amazon.s3.cache_bucket%"
 
 Create Resolver as a Service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -97,12 +95,12 @@ You have to set up the services required:
     services:
         acme.amazon_s3:
             class: Aws\S3\S3Client
-            factory: [Aws\S3\S3Client, factory]
+            factory_class: Aws\S3\S3Client
+            factory_method: factory
             arguments:
                 -
                     credentials: { key: "%amazon.s3.key%", secret: "%amazon.s3.secret%" }
                     region: "%amazon.s3.region%"
-                    version: "%amazon.s3.version%"
 
         acme.imagine.cache.resolver.amazon_s3:
             class: Liip\ImagineBundle\Imagine\Cache\Resolver\AwsS3Resolver
@@ -130,15 +128,6 @@ You have to set up the services required:
                         key: "%amazon.s3.key%"
                         secret: "%amazon.s3.secret%"
                         region: "%amazon.s3.region%"
-
-        acme.amazon_s3:
-            class: Aws\S3\S3Client
-            factory: [Aws\S3\S3Client, factory]
-            arguments:
-                -
-                    credentials: { key: %amazon.s3.key%, secret: %amazon.s3.secret% }
-                    region: %amazon.s3.region%
-                    version: "%amazon.s3.version%"
 
 
 Usage
